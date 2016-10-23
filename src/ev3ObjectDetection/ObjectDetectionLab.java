@@ -2,6 +2,7 @@ package ev3ObjectDetection;
 
 import lejos.hardware.*;
 import lejos.hardware.ev3.LocalEV3;
+import lejos.hardware.lcd.TextLCD;
 import lejos.hardware.motor.EV3LargeRegulatedMotor;
 import lejos.hardware.port.Port;
 import lejos.hardware.sensor.*;
@@ -19,8 +20,25 @@ public class ObjectDetectionLab {
 
 	
 	public static void main(String[] args) {
-		@SuppressWarnings("resource")
+		
+		int buttonChoice;
+		
+		final TextLCD t = LocalEV3.get().getTextLCD();
+		
+		do {
+			t.clear();
+			
+			t.drawString("< Left | Right >", 0, 0);
+			t.drawString("       |        ", 0, 1);
+			t.drawString(" do    | nav    ", 0, 2);
+			t.drawString(" simple| around ", 0, 3);
+			t.drawString(" nav   | object ", 0, 4);
+			
+			buttonChoice = Button.waitForAnyPress();
+		} while (buttonChoice != Button.ID_LEFT && buttonChoice != Button.ID_RIGHT);
+		
 		//set up color sensor
+		@SuppressWarnings("resource")
 		SensorModes colorSensor = new EV3ColorSensor(colorPort);
 		SampleProvider colorValue = colorSensor.getMode("RGB");
 		float[] colorData = new float[colorValue.sampleSize()];
