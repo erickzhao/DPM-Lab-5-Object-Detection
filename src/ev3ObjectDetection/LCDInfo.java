@@ -15,7 +15,8 @@ public class LCDInfo implements TimerListener{
 	private float [] color;
 	
 	/**
-	 * 
+	 * Constructor.
+	 * Starts the timer.
 	 * @param colorReader Corresponding color sensor.
 	 */
 	public LCDInfo(ColorReader colorReader) {
@@ -26,15 +27,28 @@ public class LCDInfo implements TimerListener{
 	}
 	
 	public void timedOut() { 
-		color = colorReader.getReadings();
 		LCD.clear();
+		writeRGBReadings();
+		writeObjectDetection();
+	}
+	
+	/**
+	 * Displays the readings from the RGB sensor
+	 */
+	private void writeRGBReadings() {
+		color = colorReader.getReadings();
 		LCD.drawString("R: ", 0, 0);
 		LCD.drawString("G: ", 0, 1);
 		LCD.drawString("B: ", 0, 2);
 		LCD.drawString(String.valueOf(color[0]), 3, 0);
 		LCD.drawString(String.valueOf(color[1]), 3, 1);
 		LCD.drawString(String.valueOf(color[2]), 3, 2);
-		
+	}
+	
+	/**
+	 * Writes whether or not a block/object is detected onto the LCD display.
+	 */
+	private void writeObjectDetection() {
 		if (colorReader.isObject()) {
 			LCD.drawString("BLOCK DETECTED", 0, 4);
 			if (colorReader.isBlock()) {

@@ -22,6 +22,7 @@ public class ColorReader extends Thread {
 			readSensor();
 		}
 	}
+	
 	/**
 	 * Function that reads the sensor and determines whether we're facing an object or block.
 	 * 
