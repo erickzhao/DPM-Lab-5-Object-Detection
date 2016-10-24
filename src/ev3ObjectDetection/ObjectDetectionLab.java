@@ -30,8 +30,8 @@ public class ObjectDetectionLab {
 			
 			t.drawString("< Left | Right >", 0, 0);
 			t.drawString("       |        ", 0, 1);
-			t.drawString(" detect| push   ", 0, 2);
-			t.drawString(" object| block  ", 0, 3);
+			t.drawString(" detect| bring  ", 0, 2);
+			t.drawString("  block| block  ", 0, 3);
 			
 			buttonChoice = Button.waitForAnyPress();
 		} while (buttonChoice != Button.ID_LEFT && buttonChoice != Button.ID_RIGHT);

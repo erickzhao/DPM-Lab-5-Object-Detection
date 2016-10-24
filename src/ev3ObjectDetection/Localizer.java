@@ -16,7 +16,7 @@ public class Localizer {
 	
 	private boolean noiseZone = false;
 	private static final Port colorPort = LocalEV3.get().getPort("S4");
-	private static final float MAX_DISTANCE = 25;
+	private static final float MAX_DISTANCE = 28;
 	private static final float EDGE_DISTANCE = (float) 11.4;
 	private static final float MARGIN_DISTANCE = (float) 0.3; 
 	private static final float MOTOR_SPEED = 75;
