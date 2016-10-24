@@ -1,6 +1,10 @@
 package ev3ObjectDetection;
 
 import lejos.hardware.Sound;
+import lejos.hardware.ev3.LocalEV3;
+import lejos.hardware.port.Port;
+import lejos.hardware.sensor.EV3ColorSensor;
+import lejos.hardware.sensor.SensorModes;
 import lejos.robotics.SampleProvider;
 
 public class Localizer {
@@ -11,6 +15,7 @@ public class Localizer {
 	private Navigation nav;
 	
 	private boolean noiseZone = false;
+	private static final Port colorPort = LocalEV3.get().getPort("S4");
 	private static final float MAX_DISTANCE = 25;
 	private static final float EDGE_DISTANCE = (float) 11.4;
 	private static final float MARGIN_DISTANCE = (float) 0.3; 
@@ -18,7 +23,7 @@ public class Localizer {
 	private static final double GRID_WIDTH = 30.48;
 	private static final double CENTRE_TO_US_SENSOR = 11.7;
 	
-	public Localizer(Odometer odo,  SampleProvider usSensor, float[] usData) {
+	public Localizer(Odometer odo, SampleProvider usSensor, float[] usData) {
 		this.odo = odo;
 		this.usSensor = usSensor;
 		this.usData = usData;
@@ -97,7 +102,6 @@ public class Localizer {
 			e.printStackTrace();
 		}
 		moveToLocation();
-
 	}
 	
 	public float getFilteredData() {
@@ -127,7 +131,6 @@ public class Localizer {
 		}
 		
 		distanceX = GRID_WIDTH-getFilteredData()-CENTRE_TO_US_SENSOR;
-		System.out.println(distanceX);
 		
 		nav.turnTo(270, true);
 		try {
@@ -137,14 +140,31 @@ public class Localizer {
 		}
 		
 		distanceY = GRID_WIDTH-getFilteredData()-CENTRE_TO_US_SENSOR;
-		System.out.println(distanceY);
 		
 		nav.travelTo(distanceX,distanceY);
 		nav.turnTo(0, true);
 		resetPosition();
+		startScanning();
 	}
 	
 	private void resetPosition() {
 		odo.setPosition(new double [] {0.0, 0.0, 0.0}, new boolean [] {true, true, true});
+	}
+	
+	private void startScanning() {
+
+		//set up color sensor
+		@SuppressWarnings("resource")
+		SensorModes colorSensor = new EV3ColorSensor(colorPort);
+		SampleProvider colorValue = colorSensor.getMode("RGB");
+		float[] colorData = new float[colorValue.sampleSize()];
+		
+		//initialize color reader and LCD display
+		ColorReader colorReader = new ColorReader(colorValue,colorData);
+		//LCDInfo lcd = new LCDInfo(colorReader);
+		colorReader.start();
+		
+		Detector detect = new Detector(odo, nav, usSensor, usData, colorReader);
+		detect.start();
 	}
 }

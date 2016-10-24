@@ -16,7 +16,7 @@ public class ObjectDetectionLab {
 	private static final Port colorPort = LocalEV3.get().getPort("S4");
 	
 	public static final double WHEEL_RADIUS = 2.13;
-	public static final double WHEEL_BASE = 15.13;
+	public static final double WHEEL_BASE = 15.18;
 
 	
 	public static void main(String[] args) {
@@ -35,7 +35,6 @@ public class ObjectDetectionLab {
 			
 			buttonChoice = Button.waitForAnyPress();
 		} while (buttonChoice != Button.ID_LEFT && buttonChoice != Button.ID_RIGHT);
-		
 		
 		if (buttonChoice == Button.ID_LEFT) {
 			//set up color sensor
