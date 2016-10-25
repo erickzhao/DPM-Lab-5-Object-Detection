@@ -19,7 +19,10 @@ public class Detector extends Thread{
 	private static final float MAX_DISTANCE=60;
 	private static final float SCAN_SPEED=30;
 	private static final float TRAVEL_SPEED=80;
-	private static final float ADJUSTMENT_ANGLE=20;
+	private static final float ADJUSTMENT_ANGLE=20; //the angle between when the US sensor first scans an object and its centre.
+	private static final int MAX_NUM_OF_BLOCKS=2;
+	private static final double ODOMETER_ERROR = 0.04;
+	
 	
 	public Detector(Odometer odo, Navigation nav, SampleProvider usSensor, float[] usData, ColorReader colorReader) {
 		this.odo = odo;
@@ -31,36 +34,44 @@ public class Detector extends Thread{
 	
 	@Override
 	public void run() {
+		//turn to starting scan angle
+		nav.turnTo(wrapAngle(-ADJUSTMENT_ANGLE),true);
 		
-		nav.turnTo(360-ADJUSTMENT_ANGLE,true);
-		
-		double[] blockAngles = new double[2];
+		double[] blockAngles = new double[MAX_NUM_OF_BLOCKS];
 		boolean isObject = false;
+		boolean isBlock = false;
 		
 		Sound.beep();
+		//start turning
 		nav.setSpeeds(-SCAN_SPEED, SCAN_SPEED);
 		Sound.beep();
 		
 		int numObjects=0;
 		
-		while (odo.getAng()<80 || odo.getAng()>180) {
+		//scan about 90 degrees from the start angle and then stop the motor.
+		//The end angle should be the first angle at which we can detect an object located @ 90degrees.
+		//Not catching angles over 180 since we start at 360 - adjustment angle.
+		while (odo.getAng()<90-ADJUSTMENT_ANGLE || odo.getAng()>180) {
 			if (getFilteredData()<MAX_DISTANCE && !isObject) {
-				if (numObjects==2) {
+				//if we start seeing an object while there are already two objects in memory, we break the loop
+				if (numObjects==MAX_NUM_OF_BLOCKS) {
 					System.out.println("TOO MANY OBJECTS!");
 					break;
 				}
+				//latch angle in array and increment counter
 				blockAngles[numObjects] = odo.getAng();
 				numObjects++;
+				//flag that we're starting to scan an object
 				isObject = true;
 				Sound.beepSequenceUp();
-			} else if (getFilteredData()==MAX_DISTANCE && isObject) {
+			} else if (getFilteredData()==MAX_DISTANCE && isObject) { //when we read a max dist value, flag that it's the end of the object
 				isObject = false;
 				Sound.beepSequence();
 			}
 		}
-		
 		nav.setSpeeds(0, 0);
 		
+		//check each object by turning to its latched angle and traveling forward until the color sensor detects an object.
 		for (int i=0;i<numObjects;i++) {
 			Sound.buzz();
 			nav.turnTo(wrapAngle(blockAngles[i]+ADJUSTMENT_ANGLE),true);
@@ -70,16 +81,78 @@ public class Detector extends Thread{
 			
 			nav.setSpeeds(0, 0);
 			
-			if (colorReader.isBlock()) {
-				moveBlockToEndPoint();
+			isBlock = colorReader.isBlock();
+			if (isBlock) {
+				detourSecondBlock(blockAngles[i]);
 				break;
-			} else {
+			} else { //if the object is not a block, return to origin and go to next iteration.
 				Sound.beep();
 				nav.setSpeeds(-TRAVEL_SPEED,-TRAVEL_SPEED);
-				while (Math.abs(odo.getX())>0.04 && Math.abs(odo.getY())>0.04){}
+				while (Math.abs(odo.getX())>0+ODOMETER_ERROR && Math.abs(odo.getY())>0+ODOMETER_ERROR){}
 				nav.setSpeeds(0,0);
 			}
 		}
+		// What if we didn't find the blue block after all this?
+				if (!isBlock){
+					numObjects = 0;
+					isObject = false;
+					if (blockAngles[0] >= 35){
+						nav.turnTo(0,true);
+						nav.setSpeeds(TRAVEL_SPEED, TRAVEL_SPEED);
+						while (odo.getX() < 70) {};
+						nav.turnTo(0, true);
+						nav.setSpeeds(TRAVEL_SPEED, TRAVEL_SPEED);
+						while (odo.getY() < 70) {};
+						nav.turnTo(180, true);
+					} else {
+						nav.turnTo(90,true);
+						nav.setSpeeds(TRAVEL_SPEED, TRAVEL_SPEED);
+						while (odo.getY() < 70) {};
+						nav.turnTo(0, true);
+						nav.setSpeeds(TRAVEL_SPEED, TRAVEL_SPEED);
+						while (odo.getX() < 70) {};
+						nav.turnTo(180, true);
+					}
+					// Same as the other side
+					nav.setSpeeds(-TRAVEL_SPEED, TRAVEL_SPEED);
+					while (odo.getAng()<270-ADJUSTMENT_ANGLE) {
+						if (getFilteredData()<MAX_DISTANCE && !isObject) {
+							blockAngles[numObjects] = odo.getAng();
+							numObjects++;
+							isObject = true;
+							Sound.beepSequenceUp();
+						} else if (getFilteredData()==MAX_DISTANCE && isObject) {
+							isObject = false;
+							Sound.beepSequence();
+						}
+					}
+					nav.setSpeeds(0, 0);
+					
+					for (int i=0;i<numObjects;i++) {
+						Sound.buzz();
+						nav.turnTo(wrapAngle(blockAngles[i]+ADJUSTMENT_ANGLE),true);
+						nav.setSpeeds(TRAVEL_SPEED,TRAVEL_SPEED);
+						
+						while (!colorReader.isObject()) {}
+						
+						nav.setSpeeds(0, 0);
+						
+						isBlock = colorReader.isBlock();
+						
+							if (isBlock) {
+								Sound.beep();
+								Sound.beep();
+								moveBlockToEndPoint();
+								break;
+							} else {
+								Sound.beep();
+								nav.setSpeeds(-TRAVEL_SPEED,-TRAVEL_SPEED);
+								while (Math.abs(odo.getX())>70.04 && Math.abs(odo.getY())>70.04){}
+								nav.setSpeeds(0,0);
+							}
+						}
+					}
+				
 	}
 
 	public float getFilteredData() {
@@ -116,4 +189,41 @@ public class Detector extends Thread{
 			return angle;
 		}
 	}
+
+	
+	// Move the block to endpoint if we assume there's a second block
+	private void detourSecondBlock(double angle){
+		nav.turnTo(odo.getAng()+180, true);
+		
+		clawMotor.setSpeed(150);
+		clawMotor.rotateTo(115);
+		
+		nav.travelTo(5, 5);
+		if (angle<=35){
+			nav.turnTo(90, true);
+			nav.setSpeeds(TRAVEL_SPEED, TRAVEL_SPEED);
+			while (odo.getY() < 75){}
+			nav.setSpeeds(0, 0);
+			nav.setSpeeds(-TRAVEL_SPEED, TRAVEL_SPEED);
+			while (odo.getAng() < 180){}
+			nav.setSpeeds(0, 0);
+			nav.setSpeeds(-TRAVEL_SPEED, -TRAVEL_SPEED);
+			while (odo.getX() < 75){}
+			nav.setSpeeds(0, 0);
+		} else {
+			nav.turnTo(0,true);
+			nav.setSpeeds(TRAVEL_SPEED, TRAVEL_SPEED);
+			while (odo.getX() < 75){}
+			nav.setSpeeds(0, 0);
+			nav.setSpeeds(TRAVEL_SPEED, -TRAVEL_SPEED);
+			while (odo.getAng() > 270 || odo.getAng() < 90 ){}
+			nav.setSpeeds(0, 0);
+			nav.setSpeeds(-TRAVEL_SPEED, -TRAVEL_SPEED);
+			while (odo.getY() < 75){}
+			nav.setSpeeds(0, 0);
+		}
+		
+	}
+	
+
 }
