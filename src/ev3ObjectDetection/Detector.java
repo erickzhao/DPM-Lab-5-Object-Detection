@@ -17,7 +17,9 @@ public class Detector extends Thread{
 	ColorReader colorReader;
 	
 	private static final float MAX_DISTANCE=60;
-	private static final float MOTOR_SPEED=50;
+	private static final float SCAN_SPEED=30;
+	private static final float TRAVEL_SPEED=80;
+	private static final float ADJUSTMENT_ANGLE=20;
 	
 	public Detector(Odometer odo, Navigation nav, SampleProvider usSensor, float[] usData, ColorReader colorReader) {
 		this.odo = odo;
@@ -30,23 +32,25 @@ public class Detector extends Thread{
 	@Override
 	public void run() {
 		
+		nav.turnTo(360-ADJUSTMENT_ANGLE,true);
+		
 		double[] blockAngles = new double[2];
-		double angle = 0;
 		boolean isObject = false;
 		
 		Sound.beep();
-		nav.setSpeeds(-MOTOR_SPEED, MOTOR_SPEED);
+		nav.setSpeeds(-SCAN_SPEED, SCAN_SPEED);
 		Sound.beep();
 		
 		int numObjects=0;
 		
-		while (odo.getAng()<90) {
-			if (numObjects>=1) {
-				break;
-			}
+		while (odo.getAng()<80 || odo.getAng()>180) {
 			if (getFilteredData()<MAX_DISTANCE && !isObject) {
-				numObjects++;
+				if (numObjects==2) {
+					System.out.println("TOO MANY OBJECTS!");
+					break;
+				}
 				blockAngles[numObjects] = odo.getAng();
+				numObjects++;
 				isObject = true;
 				Sound.beepSequenceUp();
 			} else if (getFilteredData()==MAX_DISTANCE && isObject) {
@@ -55,9 +59,12 @@ public class Detector extends Thread{
 			}
 		}
 		
+		nav.setSpeeds(0, 0);
+		
 		for (int i=0;i<numObjects;i++) {
-			nav.turnTo(blockAngles[i]+34,true);
-			nav.setSpeeds(MOTOR_SPEED+30,MOTOR_SPEED+30);
+			Sound.buzz();
+			nav.turnTo(wrapAngle(blockAngles[i]+ADJUSTMENT_ANGLE),true);
+			nav.setSpeeds(TRAVEL_SPEED,TRAVEL_SPEED);
 			
 			while (!colorReader.isObject()) {}
 			
@@ -67,8 +74,9 @@ public class Detector extends Thread{
 				moveBlockToEndPoint();
 				break;
 			} else {
-				nav.setSpeeds(-(MOTOR_SPEED+30),-(MOTOR_SPEED+30));
-				while (odo.getX()>0 && odo.getY()>0){}
+				Sound.beep();
+				nav.setSpeeds(-TRAVEL_SPEED,-TRAVEL_SPEED);
+				while (Math.abs(odo.getX())>0.04 && Math.abs(odo.getY())>0.04){}
 				nav.setSpeeds(0,0);
 			}
 		}
@@ -86,11 +94,26 @@ public class Detector extends Thread{
 	private void moveBlockToEndPoint() {
 			Sound.beepSequenceUp();
 			
-			nav.turnTo(odo.getAng()+180, true);
+			nav.turnTo(wrapAngle(odo.getAng()+180), true);
 			
 			clawMotor.setSpeed(200);
 			clawMotor.rotateTo(105);
 			
-			nav.travelTo(65,65);
+			nav.travelTo(67,67);
+			nav.turnTo(200,true);
+			
+			Sound.beep();
+			Sound.beep();
+			Sound.beep();
+	}
+	
+	private double wrapAngle(double angle) {
+		if (angle > 360) {
+			return angle-360;
+		} else if (angle < 0) {
+			return angle+360;
+		} else {
+			return angle;
+		}
 	}
 }
