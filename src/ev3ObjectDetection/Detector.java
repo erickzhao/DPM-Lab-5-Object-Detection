@@ -83,7 +83,11 @@ public class Detector extends Thread{
 			
 			isBlock = colorReader.isBlock();
 			if (isBlock) {
-				detourSecondBlock(blockAngles[i]);
+				if(numObjects>1){
+					detourSecondBlock(blockAngles[i]);
+				} else {
+					moveBlockToEndPoint();
+				}
 				break;
 			} else { //if the object is not a block, return to origin and go to next iteration.
 				Sound.beep();
@@ -96,14 +100,14 @@ public class Detector extends Thread{
 				if (!isBlock){
 					numObjects = 0;
 					isObject = false;
-					if (blockAngles[0] >= 35){
+					if (blockAngles[0] >= 38){
 						nav.turnTo(0,true);
 						nav.setSpeeds(TRAVEL_SPEED, TRAVEL_SPEED);
 						while (odo.getX() < 70) {};
 						nav.turnTo(0, true);
 						nav.setSpeeds(TRAVEL_SPEED, TRAVEL_SPEED);
 						while (odo.getY() < 70) {};
-						nav.turnTo(180, true);
+						nav.turnTo(180-ADJUSTMENT_ANGLE/2, true);
 					} else {
 						nav.turnTo(90,true);
 						nav.setSpeeds(TRAVEL_SPEED, TRAVEL_SPEED);
@@ -111,11 +115,11 @@ public class Detector extends Thread{
 						nav.turnTo(0, true);
 						nav.setSpeeds(TRAVEL_SPEED, TRAVEL_SPEED);
 						while (odo.getX() < 70) {};
-						nav.turnTo(180, true);
+						nav.turnTo(180-ADJUSTMENT_ANGLE/2, true);
 					}
 					// Same as the other side
 					nav.setSpeeds(-TRAVEL_SPEED, TRAVEL_SPEED);
-					while (odo.getAng()<270-ADJUSTMENT_ANGLE) {
+					while (odo.getAng()<270-ADJUSTMENT_ANGLE/2) {
 						if (getFilteredData()<MAX_DISTANCE && !isObject) {
 							blockAngles[numObjects] = odo.getAng();
 							numObjects++;
@@ -147,7 +151,7 @@ public class Detector extends Thread{
 							} else {
 								Sound.beep();
 								nav.setSpeeds(-TRAVEL_SPEED,-TRAVEL_SPEED);
-								while (Math.abs(odo.getX())>70.04 && Math.abs(odo.getY())>70.04){}
+								while (Math.abs(odo.getX())>69.96 && Math.abs(odo.getY())>69.96){}
 								nav.setSpeeds(0,0);
 							}
 						}
@@ -170,7 +174,7 @@ public class Detector extends Thread{
 			nav.turnTo(wrapAngle(odo.getAng()+180), true);
 			
 			clawMotor.setSpeed(200);
-			clawMotor.rotateTo(105);
+			clawMotor.rotateTo(115);
 			
 			nav.travelTo(67,67);
 			nav.turnTo(200,true);
